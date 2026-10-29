@@ -1,53 +1,115 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VibeStream | Entertainment</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="VibeStream music and films">
+  <title>VibeStream | Music & Films</title>
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js" defer></script>
 </head>
 <body>
-  <header class="navbar">
-    <a href="#" class="logo">Vibe<span>Stream</span></a>
-    <input id="searchInput" type="search"
-           placeholder="Search films and music...">
-    <button id="uploadButton">+ Add Media</button>
-    <input id="fileInput" type="file"
-           accept="audio/*,video/*" multiple hidden>
+  <header class="topbar">
+    <a class="brand" href="./">Vibe<span>Stream</span></a>
+    <nav>
+      <a href="#library">Library</a>
+      <a href="#admin">Admin</a>
+    </nav>
   </header>
 
   <main>
     <section class="hero">
-      <p class="tag">YOUR ENTERTAINMENT WORLD</p>
-      <h1>Discover your next <span>favorite.</span></h1>
-      <p>Listen to music and enjoy films from your own media library.</p>
-      <button id="heroUpload">Upload Your Media</button>
+      <p class="eyebrow">YOUR ENTERTAINMENT SPACE</p>
+      <h1>Music. Films. <span>One place.</span></h1>
+      <p>Discover and play music and films shared on VibeStream.</p>
+      <a class="primary-button" href="#library">Explore the library</a>
     </section>
 
-    <section class="library">
+    <section id="library" class="section">
       <div class="section-heading">
         <div>
-          <h2>Explore Entertainment</h2>
-          <p id="mediaCount">0 items in your library</p>
+          <p class="eyebrow">DISCOVER</p>
+          <h2>Media library</h2>
         </div>
-        <select id="filterSelect">
+        <span id="media-count" class="count">Loading…</span>
+      </div>
+
+      <div class="search-row">
+        <input id="search" type="search"
+          placeholder="Search titles and descriptions…"
+          aria-label="Search media">
+        <select id="filter" aria-label="Filter media">
           <option value="all">All media</option>
-          <option value="audio">Music</option>
-          <option value="video">Films & videos</option>
+          <option value="music">Music</option>
+          <option value="film">Films</option>
         </select>
       </div>
 
-      <div id="mediaGrid" class="media-grid"></div>
-      <p id="emptyMessage" class="empty">
-        Your library is empty. Click “Add Media” to begin.
+      <p id="library-status" class="status" role="status">
+        Connecting to the media library…
       </p>
+      <div id="media-grid" class="media-grid"></div>
+    </section>
+
+    <section id="admin" class="section admin-section">
+      <p class="eyebrow">CREATOR AREA</p>
+      <h2>Administrator</h2>
+      <p class="muted">Sign in with the administrator account you created in Supabase to upload media.</p>
+
+      <form id="login-form" class="panel">
+        <label for="email">Administrator email</label>
+        <input id="email" type="email" autocomplete="username"
+          placeholder="you@example.com" required>
+
+        <label for="password">Password</label>
+        <input id="password" type="password"
+          autocomplete="current-password" required>
+
+        <button type="submit">Sign in</button>
+      </form>
+
+      <div id="upload-panel" class="panel hidden">
+        <div class="signed-in-row">
+          <p id="signed-in-label" class="muted"></p>
+          <button id="logout-button" class="secondary-button" type="button">
+            Sign out
+          </button>
+        </div>
+
+        <h3>Upload music or a film</h3>
+        <form id="upload-form">
+          <label for="title">Media title</label>
+          <input id="title" type="text" maxlength="120"
+            placeholder="Enter the title" required>
+
+          <label for="kind">Media type</label>
+          <select id="kind" required>
+            <option value="music">Music</option>
+            <option value="film">Film</option>
+          </select>
+
+          <label for="description">Description (optional)</label>
+          <textarea id="description" maxlength="1000"
+            placeholder="Describe this media"></textarea>
+
+          <label for="media-file">Choose a media file (maximum 50 MB)</label>
+          <input id="media-file" type="file"
+            accept=".mp3,.m4a,.ogg,.wav,.aac,.mp4,.webm"
+            required>
+
+          <button id="upload-button" type="submit">Upload media</button>
+        </form>
+      </div>
+
+      <p id="admin-status" class="status" role="status"></p>
     </section>
   </main>
 
   <footer>
-    <p>VibeStream © 2026 — Your personal entertainment library.</p>
+    <a class="brand" href="./">Vibe<span>Stream</span></a>
+    <p>Enjoy responsibly. Share only media you have permission to publish.</p>
   </footer>
-
-  <script src="app.js"></script>
 </body>
 </html>
