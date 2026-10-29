@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VibeStream | Entertainment</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="navbar">
+    <a href="#" class="logo">Vibe<span>Stream</span></a>
+    <input id="searchInput" type="search"
+           placeholder="Search films and music...">
+    <button id="uploadButton">+ Add Media</button>
+    <input id="fileInput" type="file"
+           accept="audio/*,video/*" multiple hidden>
+  </header>
+
+  <main>
+    <section class="hero">
+      <p class="tag">YOUR ENTERTAINMENT WORLD</p>
+      <h1>Discover your next <span>favorite.</span></h1>
+      <p>Listen to music and enjoy films from your own media library.</p>
+      <button id="heroUpload">Upload Your Media</button>
+    </section>
+
+    <section class="library">
+      <div class="section-heading">
+        <div>
+          <h2>Explore Entertainment</h2>
+          <p id="mediaCount">0 items in your library</p>
+        </div>
+        <select id="filterSelect">
+          <option value="all">All media</option>
+          <option value="audio">Music</option>
+          <option value="video">Films & videos</option>
+        </select>
+      </div>
+
+      <div id="mediaGrid" class="media-grid"></div>
+      <p id="emptyMessage" class="empty">
+        Your library is empty. Click “Add Media” to begin.
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <p>VibeStream © 2026 — Your personal entertainment library.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
