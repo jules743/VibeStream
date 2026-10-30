@@ -1,321 +1,323 @@
+import {
+    Client,
+    Account,
+    TablesDB,
+    Storage,
+    ID,
+    Query
+} from "https://cdn.jsdelivr.net/npm/appwrite@21.1.0/+esm";
 
-"use strict";
+// 1. Connect to Appwrite
+const client = new Client()
+    .setEndpoint("https://fra.cloud.appwrite.io/v1")
+    .setProject("6ae4527c0020231e16e6");
 
-// Replace these two values with your own Supabase project details.
-const SUPABASE_URL = "https://YOUR_PROJECT_REF.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "YOUR_SUPABASE_PUBLISHABLE_KEY";
+const account = new Account(client);
+const tablesDB = new TablesDB(client);
+const storage = new Storage(client);
 
-const BUCKET = "vibestream-media";
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MiB
+// 2. Appwrite IDs
+const DATABASE_ID = "6ae4554a00253b0686bf";
+const TABLE_ID = "media";
+const BUCKET_ID = "vibestream-media";
+const ADMIN_USER_ID = "6ae4606f00201d9124cf";
 
-const client = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_PUBLISHABLE_KEY
-);
-
-const $ = (id) => document.getElementById(id);
-
-const loginForm = $("login-form");
-const uploadPanel = $("upload-panel");
-const uploadForm = $("upload-form");
-const adminStatus = $("admin-status");
-const libraryStatus = $("library-status");
-const mediaGrid = $("media-grid");
-const mediaCount = $("media-count");
+// 3. Website elements
+const loginForm = document.getElementById("login-form");
+const uploadForm = document.getElementById("upload-form");
+const uploadPanel = document.getElementById("upload-panel");
+const logoutButton = document.getElementById("logout-button");
+const signedInLabel = document.getElementById("signed-in-label");
+const adminStatus = document.getElementById("admin-status");
+const libraryStatus = document.getElementById("library-status");
+const mediaGrid = document.getElementById("media-grid");
+const mediaCount = document.getElementById("media-count");
+const searchInput = document.getElementById("search");
+const filterSelect = document.getElementById("filter");
 
 let currentUser = null;
 let allMedia = [];
 
-function setStatus(element, message, isError = false) {
-  element.textContent = message;
-  element.style.color = isError ? "#fca5a5" : "";
+// 4. Display messages
+function showMessage(element, message) {
+    if (element) element.textContent = message;
 }
 
-function safeFilename(filename) {
-  // Keep a short extension and remove unsafe filename characters.
-  const dot = filename.lastIndexOf(".");
-  const extension = dot >= 0
-    ? filename.slice(dot).toLowerCase().replace(/[^.a-z0-9]/g, "")
-    : "";
-
-  const base = (dot >= 0 ? filename.slice(0, dot) : filename)
-    .normalize("NFKD")
-    .replace(/[^a-zA-Z0-9_-]/g, "-")
-    .replace(/-+/g, "-")
-    .slice(0, 80);
-
-  return (base || "media") + extension;
-}
-
-function acceptedFile(file, kind) {
-  const extension = file.name.split(".").pop().toLowerCase();
-
-  const audioExtensions = ["mp3", "m4a", "ogg", "wav", "aac"];
-  const videoExtensions = ["mp4", "webm", "ogg"];
-
-  return kind === "music"
-    ? audioExtensions.includes(extension)
-    : videoExtensions.includes(extension);
-}
-
-function createMediaCard(item) {
-  const card = document.createElement("article");
-  card.className = "media-card";
-
-  const type = document.createElement("div");
-  type.className = "media-type";
-  type.textContent = item.kind === "music" ? "Music" : "Film";
-
-  const title = document.createElement("h3");
-  title.textContent = item.title;
-
-  const description = document.createElement("p");
-  description.textContent = item.description || "No description provided.";
-
-  const player = document.createElement(
-    item.kind === "music" ? "audio" : "video"
-  );
-  player.controls = true;
-  player.preload = "metadata";
-  player.src = item.public_url;
-
-  if (item.kind === "film") {
-    player.playsInline = true;
-  }
-
-  const openLink = document.createElement("a");
-  openLink.href = item.public_url;
-  openLink.target = "_blank";
-  openLink.rel = "noopener noreferrer";
-  openLink.textContent = "Open media file";
-
-  card.append(type, title, description, player, openLink);
-  return card;
-}
-
-function renderMedia() {
-  const query = $("search").value.trim().toLowerCase();
-  const filter = $("filter").value;
-
-  const filtered = allMedia.filter((item) => {
-    const matchesText =
-      item.title.toLowerCase().includes(query) ||
-      (item.description || "").toLowerCase().includes(query);
-
-    const matchesKind = filter === "all" || item.kind === filter;
-
-    return matchesText && matchesKind;
-  });
-
-  mediaGrid.replaceChildren();
-  filtered.forEach((item) => mediaGrid.append(createMediaCard(item)));
-
-  mediaCount.textContent = `${filtered.length} item(s)`;
-
-  if (filtered.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "muted";
-    empty.textContent = allMedia.length === 0
-      ? "No media has been published yet."
-      : "No media matches your search.";
-    mediaGrid.append(empty);
-  }
-}
-
+// 5. Load media from Appwrite
 async function loadMedia() {
-  setStatus(libraryStatus, "Loading media…");
+    showMessage(libraryStatus, "Loading media...");
 
-  const { data, error } = await client
-    .from("media")
-    .select("id, title, kind, description, public_url, created_at")
-    .order("created_at", { ascending: false });
+    try {
+        const result = await tablesDB.listRows({
+            databaseId: DATABASE_ID,
+            tableId: TABLE_ID,
+            queries: [
+                Query.orderDesc("$createdAt"),
+                Query.limit(100)
+            ]
+        });
 
-  if (error) {
-    setStatus(
-      libraryStatus,
-      "Could not load the library: " + error.message,
-      true
-    );
-    return;
-  }
+        allMedia = result.rows;
+        displayMedia();
 
-  allMedia = data || [];
-  renderMedia();
-  setStatus(libraryStatus, "Library loaded successfully.");
+        showMessage(libraryStatus, "");
+    } catch (error) {
+        console.error(error);
+        showMessage(
+            libraryStatus,
+            "Could not load media. Check your table permissions and column names."
+        );
+    }
 }
 
-function updateAdminView() {
-  const isSignedIn = Boolean(currentUser);
+// 6. Display music and films
+function displayMedia() {
+    if (!mediaGrid) return;
 
-  loginForm.classList.toggle("hidden", isSignedIn);
-  uploadPanel.classList.toggle("hidden", !isSignedIn);
+    mediaGrid.innerHTML = "";
 
-  $("signed-in-label").textContent = isSignedIn
-    ? "Signed in as " + currentUser.email
-    : "";
-}
+    const searchText = (searchInput?.value || "").toLowerCase();
+    const selectedType = filterSelect?.value || "all";
 
-loginForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
+    const filtered = allMedia.filter(item => {
+        const matchesSearch =
+            (item.title || "").toLowerCase().includes(searchText) ||
+            (item.description || "").toLowerCase().includes(searchText);
 
-  setStatus(adminStatus, "Signing in…");
+        const matchesType =
+            selectedType === "all" ||
+            item.mediaType === selectedType;
 
-  const email = $("email").value.trim();
-  const password = $("password").value;
+        return matchesSearch && matchesType;
+    });
 
-  const { data, error } = await client.auth.signInWithPassword({
-    email,
-    password
-  });
-
-  if (error) {
-    setStatus(adminStatus, "Sign-in failed: " + error.message, true);
-    return;
-  }
-
-  currentUser = data.user;
-  updateAdminView();
-  setStatus(adminStatus, "Signed in. You can now upload media.");
-  $("password").value = "";
-});
-
-$("logout-button").addEventListener("click", async () => {
-  const { error } = await client.auth.signOut();
-
-  if (error) {
-    setStatus(adminStatus, "Sign-out failed: " + error.message, true);
-    return;
-  }
-
-  currentUser = null;
-  updateAdminView();
-  setStatus(adminStatus, "You have signed out.");
-});
-
-uploadForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-
-  if (!currentUser) {
-    setStatus(adminStatus, "Sign in before uploading.", true);
-    return;
-  }
-
-  const title = $("title").value.trim();
-  const kind = $("kind").value;
-  const description = $("description").value.trim();
-  const file = $("media-file").files[0];
-
-  if (!title || !file) {
-    setStatus(adminStatus, "Enter a title and choose a file.", true);
-    return;
-  }
-
-  if (!acceptedFile(file, kind)) {
-    setStatus(
-      adminStatus,
-      kind === "music"
-        ? "Choose an MP3, M4A, OGG, WAV, or AAC music file."
-        : "Choose an MP4, WEBM, or OGG video file.",
-      true
-    );
-    return;
-  }
-
-  if (file.size > MAX_FILE_SIZE) {
-    setStatus(
-      adminStatus,
-      "This file exceeds 50 MB. Choose a smaller file or use a storage service with larger upload limits.",
-      true
-    );
-    return;
-  }
-
-  const uploadButton = $("upload-button");
-  uploadButton.disabled = true;
-  uploadButton.textContent = "Uploading…";
-
-  let storagePath = null;
-
-  try {
-    // Keep files inside a folder named after the signed-in administrator.
-    storagePath =
-      currentUser.id + "/" + Date.now() + "-" + safeFilename(file.name);
-
-    const { error: uploadError } = await client.storage
-      .from(BUCKET)
-      .upload(storagePath, file, {
-        contentType: file.type || "application/octet-stream",
-        cacheControl: "3600",
-        upsert: false
-      });
-
-    if (uploadError) {
-      throw new Error("File upload failed: " + uploadError.message);
+    if (mediaCount) {
+        mediaCount.textContent = `${filtered.length} items`;
     }
 
-    const { data: publicData } = client.storage
-      .from(BUCKET)
-      .getPublicUrl(storagePath);
-
-    const { error: recordError } = await client
-      .from("media")
-      .insert({
-        title,
-        kind,
-        description,
-        storage_path: storagePath,
-        public_url: publicData.publicUrl,
-        uploaded_by: currentUser.id
-      });
-
-    if (recordError) {
-      // Remove the file if its database record could not be saved.
-      await client.storage.from(BUCKET).remove([storagePath]);
-      storagePath = null;
-      throw new Error("Could not save the media details: " + recordError.message);
+    if (filtered.length === 0) {
+        mediaGrid.innerHTML = "<p>No music or films found.</p>";
+        return;
     }
 
-    uploadForm.reset();
-    setStatus(adminStatus, "Upload successful! Your media is now in the public library.");
-    await loadMedia();
-  } catch (error) {
-    setStatus(adminStatus, error.message || "Upload failed.", true);
-  } finally {
-    uploadButton.disabled = false;
-    uploadButton.textContent = "Upload media";
-  }
-});
+    filtered.forEach(item => {
+        const card = document.createElement("article");
+        card.className = "media-card";
 
-$("search").addEventListener("input", renderMedia);
-$("filter").addEventListener("change", renderMedia);
+        const heading = document.createElement("h3");
+        heading.textContent = item.title || "Untitled";
 
-async function startApp() {
-  if (
-    SUPABASE_URL.includes("YOUR_PROJECT_REF") ||
-    SUPABASE_PUBLISHABLE_KEY.includes("YOUR_SUPABASE")
-  ) {
-    setStatus(
-      libraryStatus,
-      "Setup required: add your Supabase project URL and publishable key in app.js.",
-      true
-    );
-    return;
-  }
+        const type = document.createElement("span");
+        type.className = "media-type";
+        type.textContent = item.mediaType || "Media";
 
-  const { data, error } = await client.auth.getSession();
+        const description = document.createElement("p");
+        description.textContent = item.description || "";
 
-  if (error) {
-    setStatus(adminStatus, error.message, true);
-  }
+        card.append(heading, type, description);
 
-  currentUser = data?.session?.user || null;
-  updateAdminView();
-  await loadMedia();
+        try {
+            const fileUrl = storage.getFileView({
+                bucketId: BUCKET_ID,
+                fileId: item.fileId
+            });
 
-  client.auth.onAuthStateChange((_event, session) => {
-    currentUser = session?.user || null;
-    updateAdminView();
-  });
+            const player = document.createElement(
+                item.mediaType === "music" ? "audio" : "video"
+            );
+
+            player.controls = true;
+            player.preload = "metadata";
+            player.src = fileUrl.toString();
+
+            if (item.mediaType === "film") {
+                player.playsInline = true;
+            }
+
+            card.appendChild(player);
+        } catch (error) {
+            console.error("Media URL error:", error);
+        }
+
+        mediaGrid.appendChild(card);
+    });
 }
 
-startApp();
+// 7. Admin login
+if (loginForm) {
+    loginForm.addEventListener("submit", async event => {
+        event.preventDefault();
+
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value;
+
+        showMessage(adminStatus, "Signing in...");
+
+        try {
+            await account.createEmailPasswordSession({
+                email,
+                password
+            });
+
+            currentUser = await account.get();
+
+            if (currentUser.$id !== ADMIN_USER_ID) {
+                await account.deleteSession({
+                    sessionId: "current"
+                });
+
+                currentUser = null;
+                throw new Error("This account is not the VibeStream administrator.");
+            }
+
+            loginForm.classList.add("hidden");
+            uploadPanel.classList.remove("hidden");
+
+            signedInLabel.textContent =
+                `Signed in as ${currentUser.name || currentUser.email}`;
+
+            showMessage(adminStatus, "Welcome, administrator!");
+        } catch (error) {
+            console.error(error);
+            showMessage(adminStatus, error.message || "Login failed.");
+        }
+    });
+}
+
+// 8. Restore admin session
+async function checkSession() {
+    try {
+        const user = await account.get();
+
+        if (user.$id === ADMIN_USER_ID) {
+            currentUser = user;
+
+            loginForm?.classList.add("hidden");
+            uploadPanel?.classList.remove("hidden");
+
+            if (signedInLabel) {
+                signedInLabel.textContent =
+                    `Signed in as ${user.name || user.email}`;
+            }
+        } else {
+            await account.deleteSession({
+                sessionId: "current"
+            });
+        }
+    } catch (error) {
+        console.log("No active admin session.");
+    }
+}
+
+// 9. Upload music or film
+if (uploadForm) {
+    uploadForm.addEventListener("submit", async event => {
+        event.preventDefault();
+
+        if (!currentUser || currentUser.$id !== ADMIN_USER_ID) {
+            showMessage(adminStatus, "Please sign in as administrator.");
+            return;
+        }
+
+        const title = document.getElementById("title").value.trim();
+        const mediaType = document.getElementById("kind").value;
+        const description = document.getElementById("description").value.trim();
+        const file = document.getElementById("media-file").files[0];
+
+        if (!title || !file) {
+            showMessage(adminStatus, "Enter a title and choose a file.");
+            return;
+        }
+
+        if (file.size > 50 * 1024 * 1024) {
+            showMessage(adminStatus, "File must be 50 MB or smaller.");
+            return;
+        }
+
+        const uploadButton = document.getElementById("upload-button");
+        uploadButton.disabled = true;
+        uploadButton.textContent = "Uploading...";
+
+        let uploadedFileId = null;
+
+        try {
+            uploadedFileId = ID.unique();
+
+            await storage.createFile({
+                bucketId: BUCKET_ID,
+                fileId: uploadedFileId,
+                file
+            });
+
+            await tablesDB.createRow({
+                databaseId: DATABASE_ID,
+                tableId: TABLE_ID,
+                rowId: ID.unique(),
+                data: {
+                    title,
+                    description,
+                    mediaType,
+                    fileId: uploadedFileId,
+                    coverUrl: "",
+                    category: mediaType,
+                    createdAt: new Date().toISOString()
+                }
+            });
+
+            showMessage(adminStatus, "Upload successful!");
+            uploadForm.reset();
+            await loadMedia();
+
+        } catch (error) {
+            console.error(error);
+
+            if (uploadedFileId) {
+                try {
+                    await storage.deleteFile({
+                        bucketId: BUCKET_ID,
+                        fileId: uploadedFileId
+                    });
+                } catch (cleanupError) {
+                    console.error("File cleanup failed:", cleanupError);
+                }
+            }
+
+            showMessage(
+                adminStatus,
+                error.message || "Upload failed. Check Appwrite permissions and columns."
+            );
+        } finally {
+            uploadButton.disabled = false;
+            uploadButton.textContent = "Upload Media";
+        }
+    });
+}
+
+// 10. Admin logout
+if (logoutButton) {
+    logoutButton.addEventListener("click", async () => {
+        try {
+            await account.deleteSession({
+                sessionId: "current"
+            });
+
+            currentUser = null;
+            uploadPanel?.classList.add("hidden");
+            loginForm?.classList.remove("hidden");
+
+            showMessage(adminStatus, "You have signed out.");
+        } catch (error) {
+            showMessage(adminStatus, "Logout failed.");
+        }
+    });
+}
+
+// 11. Search and filter
+searchInput?.addEventListener("input", displayMedia);
+filterSelect?.addEventListener("change", displayMedia);
+
+// 12. Start website
+await checkSession();
+await loadMedia();
+
+console.log("VibeStream is connected to Appwrite!");
