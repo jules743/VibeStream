@@ -6,10 +6,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="VibeStream music and films">
   <title>VibeStream | Music & Films</title>
+
   <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js" defer></script>
+
+  <!-- Appwrite JavaScript module -->
+  <script type="module" src="app.js"></script>
 </head>
+
 <body>
   <header class="topbar">
     <a class="brand" href="./">Vibe<span>Stream</span></a>
@@ -28,7 +31,7 @@
     </section>
 
     <section id="library" class="section">
-      <div class="section-heading">
+      <div class="section-headin">
         <div>
           <p class="eyebrow">DISCOVER</p>
           <h2>Media library</h2>
@@ -40,6 +43,7 @@
         <input id="search" type="search"
           placeholder="Search titles and descriptions…"
           aria-label="Search media">
+
         <select id="filter" aria-label="Filter media">
           <option value="all">All media</option>
           <option value="music">Music</option>
@@ -50,17 +54,22 @@
       <p id="library-status" class="status" role="status">
         Connecting to the media library…
       </p>
+
       <div id="media-grid" class="media-grid"></div>
     </section>
 
     <section id="admin" class="section admin-section">
       <p class="eyebrow">CREATOR AREA</p>
       <h2>Administrator</h2>
-      <p class="muted">Sign in with the administrator account you created in Supabase to upload media.</p>
+
+      <p class="muted">
+        Sign in with your VibeStream administrator account to upload music and films.
+      </p>
 
       <form id="login-form" class="panel">
         <label for="email">Administrator email</label>
-        <input id="email" type="email" autocomplete="username"
+        <input id="email" type="email"
+          autocomplete="username"
           placeholder="you@example.com" required>
 
         <label for="password">Password</label>
@@ -73,15 +82,19 @@
       <div id="upload-panel" class="panel hidden">
         <div class="signed-in-row">
           <p id="signed-in-label" class="muted"></p>
-          <button id="logout-button" class="secondary-button" type="button">
+
+          <button id="logout-button"
+            class="secondary-button" type="button">
             Sign out
           </button>
         </div>
 
         <h3>Upload music or a film</h3>
+
         <form id="upload-form">
           <label for="title">Media title</label>
-          <input id="title" type="text" maxlength="120"
+          <input id="title" type="text"
+            maxlength="120"
             placeholder="Enter the title" required>
 
           <label for="kind">Media type</label>
@@ -91,15 +104,21 @@
           </select>
 
           <label for="description">Description (optional)</label>
-          <textarea id="description" maxlength="1000"
+          <textarea id="description"
+            maxlength="1000"
             placeholder="Describe this media"></textarea>
 
-          <label for="media-file">Choose a media file (maximum 50 MB)</label>
+          <label for="media-file">
+            Choose a media file (maximum 50 MB)
+          </label>
+
           <input id="media-file" type="file"
             accept=".mp3,.m4a,.ogg,.wav,.aac,.mp4,.webm"
             required>
 
-          <button id="upload-button" type="submit">Upload media</button>
+          <button id="upload-button" type="submit">
+            Upload media
+          </button>
         </form>
       </div>
 
@@ -109,7 +128,9 @@
 
   <footer>
     <a class="brand" href="./">Vibe<span>Stream</span></a>
-    <p>Enjoy responsibly. Share only media you have permission to publish.</p>
+    <p>
+      Enjoy responsibly. Share only media you have permission to publish.
+    </p>
   </footer>
 </body>
 </html>
