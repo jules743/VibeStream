@@ -1,4 +1,3 @@
-
 import {
     Client,
     Account,
@@ -88,7 +87,6 @@ loginForm.addEventListener("submit", async (event) => {
     showAdminMessage("Connecting to Appwrite...");
 
     try {
-        // Remove an existing session if necessary
         try {
             await account.deleteSession({ sessionId: "current" });
         } catch (error) {
@@ -204,10 +202,32 @@ async function displayMedia() {
         const type = document.createElement("p");
         type.textContent = item.mediaType === "film" ? "Film" : "Music";
 
+        // Show movie thumbnail or music album cover
+        if (item.coverUrl) {
+            try {
+                const coverUrl = storage.getFileView({
+                    bucketId: BUCKET_ID,
+                    fileId: item.coverUrl
+                });
+
+                const cover = document.createElement("img");
+                cover.src = String(coverUrl);
+                cover.alt = `${item.title || "Media"} cover`;
+                cover.loading = "lazy";
+                cover.className = item.mediaType === "film"
+                    ? "media-cover film-cover"
+                    : "media-cover music-cover";
+
+                card.appendChild(cover);
+            } catch (error) {
+                console.error("Cover image error:", error);
+            }
+        }
+
         card.appendChild(type);
         card.appendChild(title);
         card.appendChild(description);
-
+                // Play music or film
         try {
             const fileUrl = storage.getFileView({
                 bucketId: BUCKET_ID,
@@ -258,6 +278,7 @@ uploadForm.addEventListener("submit", async (event) => {
     const mediaType = document.getElementById("kind").value;
     const description = document.getElementById("description").value.trim();
     const file = document.getElementById("media-file").files[0];
+    const coverFile = document.getElementById("cover-file").files[0];
 
     if (!file) {
         showAdminMessage("Please select a media file.");
@@ -269,10 +290,21 @@ uploadForm.addEventListener("submit", async (event) => {
         return;
     }
 
+    if (coverFile && !coverFile.type.startsWith("image/")) {
+        showAdminMessage("Please select a valid image for the cover.");
+        return;
+    }
+
+    if (coverFile && coverFile.size > 5 * 1024 * 1024) {
+        showAdminMessage("The cover image is too large. Maximum size is 5 MB.");
+        return;
+    }
+
     button.disabled = true;
     button.textContent = "Uploading...";
 
     let uploadedFileId = null;
+    let uploadedCoverFileId = null;
 
     try {
         // Confirm administrator session
@@ -282,7 +314,7 @@ uploadForm.addEventListener("submit", async (event) => {
             throw new Error("Only the administrator can upload media.");
         }
 
-        // Upload file to Appwrite Storage
+        // Upload main music or film file
         const uploadedFile = await storage.createFile({
             bucketId: BUCKET_ID,
             fileId: ID.unique(),
@@ -290,6 +322,20 @@ uploadForm.addEventListener("submit", async (event) => {
         });
 
         uploadedFileId = uploadedFile.$id;
+
+        // Upload optional cover image
+        let coverFileId = "";
+
+        if (coverFile) {
+            const uploadedCover = await storage.createFile({
+                bucketId: BUCKET_ID,
+                fileId: ID.unique(),
+                file: coverFile
+            });
+
+            uploadedCoverFileId = uploadedCover.$id;
+            coverFileId = uploadedCoverFileId;
+        }
 
         // Save media details in the database
         await tablesDB.createRow({
@@ -301,7 +347,7 @@ uploadForm.addEventListener("submit", async (event) => {
                 description: description,
                 mediaType: mediaType,
                 fileId: uploadedFileId,
-                coverUrl: "",
+                coverUrl: coverFileId,
                 category: "",
                 createdAt: new Date().toISOString()
             }
@@ -317,7 +363,7 @@ uploadForm.addEventListener("submit", async (event) => {
 
         showAdminMessage("Upload failed: " + error.message);
 
-        // Remove uploaded file if saving its database record failed
+        // Remove incomplete media upload
         if (uploadedFileId) {
             try {
                 await storage.deleteFile({
@@ -325,7 +371,19 @@ uploadForm.addEventListener("submit", async (event) => {
                     fileId: uploadedFileId
                 });
             } catch (deleteError) {
-                console.error("Could not remove incomplete upload:", deleteError);
+                console.error("Could not remove incomplete media upload:", deleteError);
+            }
+        }
+
+        // Remove incomplete cover upload
+        if (uploadedCoverFileId) {
+            try {
+                await storage.deleteFile({
+                    bucketId: BUCKET_ID,
+                    fileId: uploadedCoverFileId
+                });
+            } catch (deleteError) {
+                console.error("Could not remove incomplete cover upload:", deleteError);
             }
         }
 
