@@ -173,6 +173,16 @@ label {
   background: var(--panel);
 }
 
+.media-card {
+  overflow: hidden;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.media-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent);
+}
+
 .media-card h3 {
   overflow-wrap: anywhere;
 }
@@ -191,6 +201,27 @@ label {
   border-radius: 8px;
 }
 
+/* Movie thumbnails and music album covers */
+.media-cover {
+  display: block;
+  width: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  background: #202a40;
+}
+
+/* Movie thumbnail: wide format */
+.film-cover {
+  aspect-ratio: 16 / 9;
+}
+
+/* Music album cover: square format */
+.music-cover {
+  aspect-ratio: 1 / 1;
+}
+
+/* Media type label */
 .media-type {
   color: var(--accent2);
   font-size: 0.8rem;
