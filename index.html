@@ -8,8 +8,6 @@
   <title>VibeStream | Music & Films</title>
 
   <link rel="stylesheet" href="style.css">
-
-  <!-- Appwrite JavaScript module -->
   <script type="module" src="app.js"></script>
 </head>
 
@@ -107,19 +105,27 @@
           <textarea id="description"
             maxlength="1000"
             placeholder="Describe this media"></textarea>
-<label for="cover-file">Cover image (optional)</label>
-<input
-    id="cover-file"
-    type="file"
-    accept="image/*"
->
+
+          <label for="cover-file">Cover image (optional)</label>
+          <input id="cover-file" type="file"
+            accept="image/*">
+
+          <label for="bunny-video-id">
+            Bunny Stream Video ID (for external films)
+          </label>
+          <input id="bunny-video-id" type="text"
+            placeholder="Enter Bunny video ID">
+
+          <p class="muted">
+            For Bunny-hosted films, enter the Video ID above.
+            For music, choose a file below.
+          </p>
+
           <label for="media-file">
             Choose a media file (maximum 50 MB)
           </label>
-
           <input id="media-file" type="file"
-            accept=".mp3,.m4a,.ogg,.wav,.aac,.mp4,.webm"
-            required>
+            accept=".mp3,.m4a,.ogg,.wav,.aac,.mp4,.webm">
 
           <button id="upload-button" type="submit">
             Upload media
