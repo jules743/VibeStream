@@ -22,7 +22,10 @@ const TABLE_ID = "media";
 const BUCKET_ID = "vibestream-media";
 const ADMIN_USER_ID = "6ae4606f00201d9124cf";
 
-// 3. Get HTML elements
+// 3. Bunny Stream settings
+const BUNNY_LIBRARY_ID = "796949";
+
+// 4. Get HTML elements
 const loginForm = document.getElementById("login-form");
 const uploadForm = document.getElementById("upload-form");
 const uploadPanel = document.getElementById("upload-panel");
@@ -39,7 +42,7 @@ const filterSelect = document.getElementById("filter");
 
 let allMedia = [];
 
-// 4. Display messages
+// 5. Display messages
 function showAdminMessage(message) {
     adminStatus.textContent = message;
 }
@@ -48,7 +51,7 @@ function showLibraryMessage(message) {
     libraryStatus.textContent = message;
 }
 
-// 5. Check whether the signed-in user is the administrator
+// 6. Check administrator
 async function checkAdmin() {
     try {
         const user = await account.get();
@@ -73,13 +76,12 @@ async function checkAdmin() {
     }
 }
 
-// 6. Sign in
+// 7. Sign in
 loginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
     const email = document.getElementById("email").value.trim();
     const password = document.getElementById("password").value;
-
     const button = loginForm.querySelector('button[type="submit"]');
 
     button.disabled = true;
@@ -89,19 +91,15 @@ loginForm.addEventListener("submit", async (event) => {
     try {
         try {
             await account.deleteSession({ sessionId: "current" });
-        } catch (error) {
-            // No existing session is okay
-        }
+        } catch (error) {}
 
-        await account.createEmailPasswordSession({
-            email,
-            password
-        });
+        await account.createEmailPasswordSession({ email, password });
 
         const isAdmin = await checkAdmin();
 
         if (!isAdmin) {
             showAdminMessage("Access denied. This is not the administrator account.");
+
             try {
                 await account.deleteSession({ sessionId: "current" });
             } catch (error) {}
@@ -110,13 +108,14 @@ loginForm.addEventListener("submit", async (event) => {
     } catch (error) {
         console.error("Sign-in error:", error);
         showAdminMessage("Sign-in failed: " + error.message);
+
     } finally {
         button.disabled = false;
         button.textContent = "Sign in";
     }
 });
 
-// 7. Sign out
+// 8. Sign out
 logoutButton.addEventListener("click", async () => {
     try {
         await account.deleteSession({ sessionId: "current" });
@@ -131,7 +130,7 @@ logoutButton.addEventListener("click", async () => {
     }
 });
 
-// 8. Load media from the online database
+// 9. Load media
 async function loadMedia() {
     showLibraryMessage("Loading media...");
 
@@ -146,7 +145,6 @@ async function loadMedia() {
         });
 
         allMedia = response.rows || [];
-
         displayMedia();
 
         if (allMedia.length === 0) {
@@ -161,8 +159,8 @@ async function loadMedia() {
     }
 }
 
-// 9. Display media cards
-async function displayMedia() {
+// 10. Display media
+function displayMedia() {
     mediaGrid.innerHTML = "";
 
     const searchTerm = searchInput.value.toLowerCase().trim();
@@ -202,7 +200,7 @@ async function displayMedia() {
         const type = document.createElement("p");
         type.textContent = item.mediaType === "film" ? "Film" : "Music";
 
-        // Show movie thumbnail or music album cover
+        // Cover image
         if (item.coverUrl) {
             try {
                 const coverUrl = storage.getFileView({
@@ -214,11 +212,10 @@ async function displayMedia() {
                 cover.src = String(coverUrl);
                 cover.alt = `${item.title || "Media"} cover`;
                 cover.loading = "lazy";
-                cover.className = item.mediaType === "film"
-                    ? "media-cover film-cover"
-                    : "media-cover music-cover";
+                cover.className = "media-cover";
 
                 card.appendChild(cover);
+
             } catch (error) {
                 console.error("Cover image error:", error);
             }
@@ -227,48 +224,73 @@ async function displayMedia() {
         card.appendChild(type);
         card.appendChild(title);
         card.appendChild(description);
-                // Play music or film
-        try {
-            const fileUrl = storage.getFileView({
-                bucketId: BUCKET_ID,
-                fileId: item.fileId
-            });
 
-            const url = String(fileUrl);
+        // Bunny-hosted film
+        if (item.mediaType === "film" && item.videoUrl) {
+            const player = document.createElement("iframe");
 
-            if (item.mediaType === "film") {
-                const video = document.createElement("video");
-                video.controls = true;
-                video.preload = "metadata";
-                video.src = url;
-                video.style.width = "100%";
-                card.appendChild(video);
-            } else {
-                const audio = document.createElement("audio");
-                audio.controls = true;
-                audio.preload = "none";
-                audio.src = url;
-                audio.style.width = "100%";
-                card.appendChild(audio);
+            player.src =
+                `https://player.mediadelivery.net/embed/${BUNNY_LIBRARY_ID}/${encodeURIComponent(item.videoUrl)}?responsive=true`;
+
+            player.loading = "lazy";
+            player.allow =
+                "accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen";
+            player.allowFullscreen = true;
+            player.style.width = "100%";
+            player.style.aspectRatio = "16 / 9";
+            player.style.border = "0";
+
+            card.appendChild(player);
+
+        } else {
+            // Appwrite-hosted film or music
+            try {
+                if (!item.fileId) {
+                    throw new Error("No media file is attached.");
+                }
+
+                const fileUrl = storage.getFileView({
+                    bucketId: BUCKET_ID,
+                    fileId: item.fileId
+                });
+
+                const url = String(fileUrl);
+
+                if (item.mediaType === "film") {
+                    const video = document.createElement("video");
+                    video.controls = true;
+                    video.preload = "metadata";
+                    video.src = url;
+                    video.style.width = "100%";
+                    card.appendChild(video);
+
+                } else {
+                    const audio = document.createElement("audio");
+                    audio.controls = true;
+                    audio.preload = "none";
+                    audio.src = url;
+                    audio.style.width = "100%";
+                    card.appendChild(audio);
+                }
+
+            } catch (error) {
+                console.error("Media file error:", error);
+
+                const errorText = document.createElement("p");
+                errorText.textContent = "Unable to load this media file.";
+                card.appendChild(errorText);
             }
-
-        } catch (error) {
-            console.error("Media file error:", error);
-
-            const errorText = document.createElement("p");
-            errorText.textContent = "Unable to load this media file.";
-            card.appendChild(errorText);
         }
 
         mediaGrid.appendChild(card);
     }
 }
 
-// 10. Search and filter
+// 11. Search and filter
 searchInput.addEventListener("input", displayMedia);
 filterSelect.addEventListener("change", displayMedia);
 
-// 11. Upload media
+// 12. Upload media
 uploadForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
@@ -277,15 +299,29 @@ uploadForm.addEventListener("submit", async (event) => {
     const title = document.getElementById("title").value.trim();
     const mediaType = document.getElementById("kind").value;
     const description = document.getElementById("description").value.trim();
+
     const file = document.getElementById("media-file").files[0];
     const coverFile = document.getElementById("cover-file").files[0];
+    const bunnyVideoId = document.getElementById("bunny-video-id").value.trim();
 
-    if (!file) {
+    const useBunny = mediaType === "film" && bunnyVideoId !== "";
+
+    if (!title) {
+        showAdminMessage("Please enter a title.");
+        return;
+    }
+
+    if (useBunny && !/^[a-f0-9-]{36}$/i.test(bunnyVideoId)) {
+        showAdminMessage("Please enter a valid Bunny Stream Video ID.");
+        return;
+    }
+
+    if (!useBunny && !file) {
         showAdminMessage("Please select a media file.");
         return;
     }
 
-    if (file.size > 50 * 1024 * 1024) {
+    if (file && !useBunny && file.size > 50 * 1024 * 1024) {
         showAdminMessage("The file is too large. Maximum size is 50 MB.");
         return;
     }
@@ -307,21 +343,22 @@ uploadForm.addEventListener("submit", async (event) => {
     let uploadedCoverFileId = null;
 
     try {
-        // Confirm administrator session
         const user = await account.get();
 
         if (user.$id !== ADMIN_USER_ID) {
             throw new Error("Only the administrator can upload media.");
         }
 
-        // Upload main music or film file
-        const uploadedFile = await storage.createFile({
-            bucketId: BUCKET_ID,
-            fileId: ID.unique(),
-            file: file
-        });
+        // Upload local music or Appwrite-hosted film
+        if (!useBunny) {
+            const uploadedFile = await storage.createFile({
+                bucketId: BUCKET_ID,
+                fileId: ID.unique(),
+                file: file
+            });
 
-        uploadedFileId = uploadedFile.$id;
+            uploadedFileId = uploadedFile.$id;
+        }
 
         // Upload optional cover image
         let coverFileId = "";
@@ -337,7 +374,7 @@ uploadForm.addEventListener("submit", async (event) => {
             coverFileId = uploadedCoverFileId;
         }
 
-        // Save media details in the database
+        // Save media details
         await tablesDB.createRow({
             databaseId: DATABASE_ID,
             tableId: TABLE_ID,
@@ -346,7 +383,8 @@ uploadForm.addEventListener("submit", async (event) => {
                 title: title,
                 description: description,
                 mediaType: mediaType,
-                fileId: uploadedFileId,
+                fileId: uploadedFileId || "",
+                videoUrl: useBunny ? bunnyVideoId : "",
                 coverUrl: coverFileId,
                 category: "",
                 createdAt: new Date().toISOString()
@@ -360,10 +398,8 @@ uploadForm.addEventListener("submit", async (event) => {
 
     } catch (error) {
         console.error("Upload error:", error);
-
         showAdminMessage("Upload failed: " + error.message);
 
-        // Remove incomplete media upload
         if (uploadedFileId) {
             try {
                 await storage.deleteFile({
@@ -371,11 +407,10 @@ uploadForm.addEventListener("submit", async (event) => {
                     fileId: uploadedFileId
                 });
             } catch (deleteError) {
-                console.error("Could not remove incomplete media upload:", deleteError);
+                console.error(deleteError);
             }
         }
 
-        // Remove incomplete cover upload
         if (uploadedCoverFileId) {
             try {
                 await storage.deleteFile({
@@ -383,7 +418,7 @@ uploadForm.addEventListener("submit", async (event) => {
                     fileId: uploadedCoverFileId
                 });
             } catch (deleteError) {
-                console.error("Could not remove incomplete cover upload:", deleteError);
+                console.error(deleteError);
             }
         }
 
@@ -393,7 +428,7 @@ uploadForm.addEventListener("submit", async (event) => {
     }
 });
 
-// 12. Start VibeStream
+// 13. Start VibeStream
 async function startVibeStream() {
     await checkAdmin();
     await loadMedia();
